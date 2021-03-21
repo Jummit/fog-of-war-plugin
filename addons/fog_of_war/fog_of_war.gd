@@ -11,16 +11,30 @@ export var fog_pixel_size := 10 setget set_fog_pixel_size
 export var fog_color := Color(1, 1, 1, .6) setget set_fog_color
 # If the borders should fade out when uncovering an area.
 export var smooth_borders := true
+# The amount of frames between fog updates.
+export var update_rate := 4
+# The distance a node has to travel to uncover fog again.
+export var distance_to_update := 500.0
 
 var image := Image.new()
+# A cache of the positions of nodes that uncover the fog. Used to only perform
+# image operations if the position changed.
+var position_cache : Dictionary
 
 func _ready() -> void:
 	setup_image()
 
 
 func _process(_delta : float) -> void:
+	if Engine.get_frames_drawn() % update_rate != 0:
+		return
 	for node in get_tree().get_nodes_in_group("UncoverFog"):
-		uncover_sphere(node.position, 200 if not "see_range" in node else node.see_range)
+		if not node in position_cache or\
+				position_cache[node].distance_squared_to(
+				node.position) > distance_to_update:
+			uncover_sphere(node.position, 200 if not "see_range" in node else\
+					node.see_range)
+			position_cache[node] = node.position
 
 
 func uncover_sphere(at : Vector2, radius := 200.0) -> void:
